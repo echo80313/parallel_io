@@ -22,8 +22,9 @@ type BlockingQueue struct {
 
 func NewBlockingQueue(cap int) Queue {
 	bq := &BlockingQueue{
-		cap:   cap,
-		queue: make([]DataBlock, 0, cap),
+		cap:     cap,
+		queue:   make([]DataBlock, 0, cap),
+		stopped: 0,
 	}
 	bq.condPush = sync.NewCond(&bq.mu)
 	bq.condPop = sync.NewCond(&bq.mu)
@@ -44,7 +45,7 @@ func (bq *BlockingQueue) Push(blk DataBlock) error {
 	for len(bq.queue) == bq.cap && !bq.IsStopped() {
 		bq.condPop.Wait()
 	}
-	if !bq.IsStopped() {
+	if bq.IsStopped() {
 		return errQueueStopped
 	}
 	bq.queue = append(bq.queue, blk)
@@ -59,11 +60,12 @@ func (bq *BlockingQueue) Pop() (DataBlock, error) {
 	for len(bq.queue) == 0 && !bq.IsStopped() {
 		bq.condPop.Wait()
 	}
-	if !bq.IsStopped() {
+	if bq.IsStopped() {
 		return nil, errQueueStopped
 	}
 	blk := bq.queue[0]
 	bq.queue = bq.queue[1:]
+
 	bq.condPush.Signal()
 	return blk, nil
 }
