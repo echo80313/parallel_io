@@ -43,7 +43,7 @@ func (bq *BlockingQueue) Push(blk DataBlock) error {
 	bq.mu.Lock()
 	defer bq.mu.Unlock()
 	for len(bq.queue) == bq.cap && !bq.IsStopped() {
-		bq.condPop.Wait()
+		bq.condPush.Wait()
 	}
 	if bq.IsStopped() {
 		return errQueueStopped
