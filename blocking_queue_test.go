@@ -36,7 +36,7 @@ func TestMultiPushes(t *testing.T) {
 	popDone := make(chan struct{})
 	var popErr error
 	go func() {
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 		_, popErr = que.Pop()
 		close(popDone)
 	}()
@@ -75,7 +75,7 @@ func TestMultiPopes(t *testing.T) {
 	pushDone := make(chan struct{})
 	var pushErr error
 	go func() {
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 		pushErr = que.Push(DataBlock([]byte("aaa")))
 		close(pushDone)
 	}()
