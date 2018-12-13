@@ -13,6 +13,10 @@ const (
 	BlockingWorker
 )
 
+/*
+WorkerPool works like a semaphore with 3 category. All workers start in
+Read Stat because we want to start fast.
+*/
 type WorkerPool struct {
 	workerLimit int
 
