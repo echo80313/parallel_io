@@ -31,6 +31,12 @@ func NewBlockingQueue(cap int) Queue {
 	return bq
 }
 
+func (bq *BlockingQueue) Length() int {
+	bq.mu.Lock()
+	defer bq.mu.Unlock()
+	return len(bq.queue)
+}
+
 func (bq *BlockingQueue) GetCapacity() int {
 	return bq.cap
 }

@@ -3,7 +3,6 @@ package parallel_disk_io
 import (
 	"io/ioutil"
 	"os"
-	"reflect"
 	"sync/atomic"
 	"testing"
 
@@ -40,8 +39,8 @@ func (s *ParallelDiskReadAndProcessSuite) generateFileContent(n int) []byte {
 }
 
 func (s *ParallelDiskReadAndProcessSuite) SetupSuite() {
-	s.blkSize = 8
-	randomByte := s.generateFileContent(10) // 1MiB
+	s.blkSize = 64
+	randomByte := s.generateFileContent(1000) // 1MiB
 	s.testFilePath = "parallel.test"
 	ioutil.WriteFile(s.testFilePath, randomByte, 0666)
 	s.tmpFile, _ = os.Open(s.testFilePath)
@@ -57,18 +56,18 @@ func (s *ParallelDiskReadAndProcessSuite) TestBasicRead() {
 		Params{
 			BlockSize:     int64(s.blkSize),
 			WorkerLimit:   10,
-			MinReadWorker: 0,
+			MinReadWorker: 1,
+			NumOfCPU:      4,
+			QueueCap:      10,
 		},
 	)
 	assert.Nil(s.T(), err)
-	errBlks := int32(0)
-	err = pdrp.ReadAndProcess(s.tmpFile, func(id int, b DataBlock) {
-		if !reflect.DeepEqual(b, s.contentDict[id%s.alphaSetSize]) {
-			atomic.AddInt32(&errBlks, 1)
-		}
+	processedBlks := int32(0)
+	err = pdrp.ReadAndProcess(s.tmpFile, func(b DataBlock) {
+		atomic.AddInt32(&processedBlks, 1)
 	})
 	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), int32(0), atomic.LoadInt32(&errBlks))
+	assert.Equal(s.T(), int32(1000), atomic.LoadInt32(&processedBlks))
 }
 
 func TestParallelDiskReadAndProcessSuite(t *testing.T) {
