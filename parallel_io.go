@@ -42,7 +42,7 @@ func NewParallelDiskReadAndProcess(params Params) (*ParallelDiskReadAndProcess, 
 	}, nil
 }
 
-func (p *ParallelDiskReadAndProcess) ReadAndProcess(file *os.File) error {
+func (p *ParallelDiskReadAndProcess) ReadAndProcess(file *os.File, process func(int, DataBlock)) error {
 	fileInfo, err := file.Stat()
 	if err != nil {
 		return errors.New("no file info availiable")
@@ -69,6 +69,7 @@ func (p *ParallelDiskReadAndProcess) ReadAndProcess(file *os.File) error {
 		wid, _ := p.workerPool.CheckoutWorker(context.TODO(), ReadWorker)
 		go func(blkID int64) {
 			file.ReadAt(buffer[wid], blkID*p.blockSize)
+			process(int(blkID), buffer[wid])
 			wg.Done()
 		}(int64(i))
 		p.workerPool.CheckinWorker(wid, ReadWorker)
