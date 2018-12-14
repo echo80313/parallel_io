@@ -6,10 +6,9 @@ import (
 	"io"
 	"os"
 	"runtime"
-	"sync"
 )
 
-type ProcessFunc func(DataBlock)
+type ProcessFunc func(DataBlock) error
 
 type Params struct {
 	WorkerLimit        int
@@ -57,7 +56,9 @@ func NewParallelDiskReadAndProcess(params Params) (*ParallelDiskReadAndProcess, 
 	}, nil
 }
 
-func (p *ParallelDiskReadAndProcess) ReadAndProcess(file *os.File, process ProcessFunc) error {
+func (p *ParallelDiskReadAndProcess) ReadAndProcess(
+	file *os.File,
+	process ProcessFunc) error {
 	defer p.dataQueue.Stop()
 
 	fileInfo, err := file.Stat()
@@ -80,21 +81,22 @@ func (p *ParallelDiskReadAndProcess) ReadAndProcess(file *os.File, process Proce
 		buffer[i] = make([]byte, p.blockSize)
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(numberOfChunks)
-	total := 0
+	errChan := make(chan error, numberOfChunks)
 	go func() {
 		for !p.dataQueue.IsStopped() {
 			blk, err := p.dataQueue.Pop()
 			if err != nil {
+				errChan <- err
 				continue
 			}
-			total++
-			wid, _ := p.workerPool.CheckoutWorker(context.TODO(), ProcessWorker)
+			wid, err := p.workerPool.CheckoutWorker(context.TODO(), ProcessWorker)
+			if err != nil {
+				errChan <- err
+			}
 			go func(id int, blk DataBlock) {
-				process(blk)
+				err := process(blk)
 				p.workerPool.CheckinWorker(wid, ProcessWorker)
-				wg.Done()
+				errChan <- err
 			}(wid, blk)
 		}
 	}()
@@ -105,11 +107,20 @@ func (p *ParallelDiskReadAndProcess) ReadAndProcess(file *os.File, process Proce
 			_, err := file.ReadAt(buffer[wid], blkID*p.blockSize)
 			if err == nil || err == io.EOF {
 				p.dataQueue.Push(buffer[wid])
+			} else {
+				// we are not going to process this blk, so it's done.
+				errChan <- err
 			}
 			p.workerPool.CheckinWorker(wid, ReadWorker)
 		}(int64(i))
 	}
-	wg.Wait()
+	for i := 0; i < numberOfChunks; i++ {
+		err2 := <-errChan
+		// report the frist error we encountered.
+		if err2 != nil && err == nil {
+			err = err2
+		}
+	}
 
-	return nil
+	return err
 }

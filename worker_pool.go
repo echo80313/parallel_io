@@ -75,6 +75,10 @@ func (wp *WorkerPool) CheckoutWorker(ctx context.Context, t WorkerType) (int, er
 // and t is the type of worker being used. It's caller's responsibility
 // to provide the correct information.
 func (wp *WorkerPool) CheckinWorker(wid int, t WorkerType) {
+	if wid < 0 || wid >= wp.workerLimit {
+		// invalid id, do nothing
+		return
+	}
 	wp.mu.Lock()
 	wp.checkOutCount[t]--
 	nActiveRead := wp.checkOutCount[ReadWorker]
@@ -85,7 +89,7 @@ func (wp *WorkerPool) CheckinWorker(wid int, t WorkerType) {
 	case ReadWorker:
 		if nActiveRrocess < wp.numCPU {
 			toCheckinType = ProcessWorker
-			wp.ActivateWorker()
+			wp.activateWorker()
 		} else if nActiveRead < wp.minRead || nActiveRead < nActiveRrocess {
 			toCheckinType = ReadWorker
 		} else {
@@ -94,7 +98,7 @@ func (wp *WorkerPool) CheckinWorker(wid int, t WorkerType) {
 	case ProcessWorker:
 		if nActiveRrocess < wp.numCPU && wp.que.Length() > 0 {
 			toCheckinType = ProcessWorker
-			wp.ActivateWorker()
+			wp.activateWorker()
 		} else if nActiveRead < wp.minRead || nActiveRead < nActiveRrocess {
 			toCheckinType = ReadWorker
 		} else {
@@ -107,7 +111,7 @@ func (wp *WorkerPool) CheckinWorker(wid int, t WorkerType) {
 }
 
 // ActivateWorker moves a worker in BLOCK state if any to READ state.
-func (wp *WorkerPool) ActivateWorker() {
+func (wp *WorkerPool) activateWorker() {
 	select {
 	case wid := <-wp.availiableWorkers[BlockingWorker]:
 		wp.availiableWorkers[ReadWorker] <- wid

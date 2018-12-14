@@ -63,8 +63,9 @@ func (s *ParallelDiskReadAndProcessSuite) TestBasicRead() {
 	)
 	assert.Nil(s.T(), err)
 	processedBlks := int32(0)
-	err = pdrp.ReadAndProcess(s.tmpFile, func(b DataBlock) {
+	err = pdrp.ReadAndProcess(s.tmpFile, func(b DataBlock) error {
 		atomic.AddInt32(&processedBlks, 1)
+		return nil
 	})
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), int32(1000), atomic.LoadInt32(&processedBlks))
