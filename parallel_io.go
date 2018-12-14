@@ -1,7 +1,6 @@
 package parallel_disk_io
 
 import (
-	"context"
 	"errors"
 	"io"
 	"os"
@@ -79,10 +78,7 @@ func (p *ParallelDiskReadAndProcess) ReadAndProcess(
 				errChan <- err
 				continue
 			}
-			wid, err := p.workerPool.CheckoutWorker(context.TODO(), ProcessWorker)
-			if err != nil {
-				errChan <- err
-			}
+			wid := p.workerPool.CheckoutWorker(ProcessWorker)
 			go func(id int, blk DataBlock) {
 				err := process(blk)
 				p.workerPool.CheckinWorker(wid, ProcessWorker)
@@ -92,7 +88,7 @@ func (p *ParallelDiskReadAndProcess) ReadAndProcess(
 	}()
 
 	for i := 0; i < numberOfChunks; i++ {
-		wid, _ := p.workerPool.CheckoutWorker(context.TODO(), ReadWorker)
+		wid := p.workerPool.CheckoutWorker(ReadWorker)
 		go func(blkID int64) {
 			_, err := file.ReadAt(buffer[wid], blkID*p.blockSize)
 			if err == nil || err == io.EOF {

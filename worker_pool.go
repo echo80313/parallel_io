@@ -1,8 +1,6 @@
 package parallel_disk_io
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"sync"
 )
@@ -59,16 +57,12 @@ func NewWorkerPool(limit, minRead, numCPU int, q Queue) (*WorkerPool, error) {
 }
 
 // CheckoutWorker acquire worker wid from t state
-func (wp *WorkerPool) CheckoutWorker(ctx context.Context, t WorkerType) (int, error) {
-	select {
-	case <-ctx.Done():
-		return -1, errors.New("request worker timeout")
-	case wid := <-wp.availiableWorkers[t]:
-		wp.mu.Lock()
-		wp.checkOutCount[t]++
-		wp.mu.Unlock()
-		return wid, nil
-	}
+func (wp *WorkerPool) CheckoutWorker(t WorkerType) int {
+	wid := <-wp.availiableWorkers[t]
+	wp.mu.Lock()
+	wp.checkOutCount[t]++
+	wp.mu.Unlock()
+	return wid
 }
 
 // CheckinWorker returns worker wid to t state. wid is the id of worker,
