@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io"
 	"os"
-	"runtime"
 )
 
 type ProcessFunc func(DataBlock) error
@@ -28,15 +27,6 @@ type ParallelDiskReadAndProcess struct {
 }
 
 func NewParallelDiskReadAndProcess(params Params) (*ParallelDiskReadAndProcess, error) {
-	if params.MinReadWorker < 1 {
-		return nil, errors.New("min read workers should be at least 1")
-	}
-	if params.WorkerLimit-params.MinReadWorker < 1 {
-		return nil, errors.New("should at least have 1 process worker")
-	}
-	if params.NumOfCPU == 0 {
-		params.NumOfCPU = runtime.NumCPU()
-	}
 	dataQueue := NewBlockingQueue(params.QueueCap)
 	wp, err := NewWorkerPool(
 		params.WorkerLimit,
