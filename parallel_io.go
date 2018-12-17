@@ -70,7 +70,7 @@ func (p *ParallelDiskReadAndProcess) ReadAndProcess(
 		buffer[i] = make([]byte, p.blockSize)
 	}
 
-	errChan := make(chan error, numberOfChunks)
+	errChan := make(chan error, p.workerLimit)
 	go func() {
 		for !p.dataQueue.IsStopped() {
 			blk, err := p.dataQueue.Pop()
